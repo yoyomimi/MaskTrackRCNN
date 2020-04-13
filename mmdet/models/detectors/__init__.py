@@ -6,9 +6,10 @@ from .fast_rcnn import FastRCNN
 from .faster_rcnn import FasterRCNN
 from .mask_rcnn import MaskRCNN
 from .cascade_rcnn import CascadeRCNN
+from .cascade_rcnn_track import CascadeTrackRCNN
 from .retinanet import RetinaNet
 
 __all__ = [
     'BaseDetector', 'SingleStageDetector', 'TwoStageDetector', 'RPN',
-    'FastRCNN', 'FasterRCNN', 'MaskRCNN', 'CascadeRCNN', 'RetinaNet'
+    'FastRCNN', 'FasterRCNN', 'MaskRCNN', 'CascadeRCNN', 'RetinaNet', 'CascadeTrackRCNN'
 ]
