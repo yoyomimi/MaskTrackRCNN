@@ -17,7 +17,7 @@ def to_tensor(data):
     if isinstance(data, torch.Tensor):
         return data
     elif isinstance(data, np.ndarray):
-        return torch.from_numpy(data)
+        return torch.from_numpy(data).float()
     elif isinstance(data, Sequence) and not mmcv.is_str(data):
         return torch.tensor(data)
     elif isinstance(data, int):
@@ -131,8 +131,8 @@ class DefaultFormatBundle(object):
             results['gt_masks'] = DC(results['gt_masks'], cpu_only=True)
         if 'mask_ignore' in results:
             results['mask_ignore'] = DC(to_tensor(results['mask_ignore']))
-        if 'gt_ids' in results:
-            results['gt_ids'] = DC(to_tensor(results['gt_ids']))
+        # if 'gt_ids' in results:
+        #     results['gt_ids'] = DC(to_tensor(results['gt_ids']))
         if 'gt_semantic_seg' in results:
             results['gt_semantic_seg'] = DC(
                 to_tensor(results['gt_semantic_seg'][None, ...]), stack=True)

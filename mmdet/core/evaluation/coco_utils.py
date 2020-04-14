@@ -2,35 +2,35 @@ import mmcv
 import numpy as np
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
-from pycocotools.ytvos import YTVOS
-from pycocotools.ytvoseval import YTVOSeval
+# from pycocotools.ytvos import YTVOS
+# from pycocotools.ytvoseval import YTVOSeval
 
 from .recall import eval_recalls
 
 
-def ytvos_eval(result_file, result_types, ytvos, max_dets=(100, 300, 1000)):
+# def ytvos_eval(result_file, result_types, ytvos, max_dets=(100, 300, 1000)):
 
-    if mmcv.is_str(ytvos):
-        ytvos = YTVOS(ytvos)
-    assert isinstance(ytvos, YTVOS)
+#     if mmcv.is_str(ytvos):
+#         ytvos = YTVOS(ytvos)
+#     assert isinstance(ytvos, YTVOS)
 
-    if len(ytvos.anns) == 0:
-        print("Annotations does not exist")
-        return
-    assert result_file.endswith('.json')
-    ytvos_dets = ytvos.loadRes(result_file)
+#     if len(ytvos.anns) == 0:
+#         print("Annotations does not exist")
+#         return
+#     assert result_file.endswith('.json')
+#     ytvos_dets = ytvos.loadRes(result_file)
 
-    vid_ids = ytvos.getVidIds()
-    for res_type in result_types:
-        iou_type = res_type
-        ytvosEval = YTVOSeval(ytvos, ytvos_dets, iou_type)
-        ytvosEval.params.vidIds = vid_ids
-        if res_type == 'proposal':
-            ytvosEval.params.useCats = 0
-            ytvosEval.params.maxDets = list(max_dets)
-        ytvosEval.evaluate()
-        ytvosEval.accumulate()
-        ytvosEval.summarize()
+#     vid_ids = ytvos.getVidIds()
+#     for res_type in result_types:
+#         iou_type = res_type
+#         ytvosEval = YTVOSeval(ytvos, ytvos_dets, iou_type)
+#         ytvosEval.params.vidIds = vid_ids
+#         if res_type == 'proposal':
+#             ytvosEval.params.useCats = 0
+#             ytvosEval.params.maxDets = list(max_dets)
+#         ytvosEval.evaluate()
+#         ytvosEval.accumulate()
+#         ytvosEval.summarize()
 
 def coco_eval(result_file, result_types, coco, max_dets=(100, 300, 1000)):
     for res_type in result_types:

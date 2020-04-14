@@ -3,7 +3,6 @@ from .registry import DATASETS
 from .custom import CustomDataset
 from .xml_style import XMLDataset
 from .coco import CocoDataset
-from .ytvos import YTVOSDataset
 from .voc import VOCDataset
 from .loader import GroupSampler, DistributedGroupSampler, build_dataloader
 from .utils import to_tensor, random_scale, show_ann, get_dataset
@@ -13,7 +12,7 @@ from .extra_aug import ExtraAugmentation
 from .mots import MOTSDataset
 
 __all__ = [
-    'CustomDataset', 'XMLDataset', 'CocoDataset', 'YTVOSDataset',
+    'CustomDataset', 'XMLDataset', 'CocoDataset',
     'VOCDataset', 'GroupSampler',
     'DistributedGroupSampler', 'build_dataloader', 'to_tensor', 'random_scale',
     'show_ann', 'get_dataset', 'ConcatDataset', 'RepeatDataset',

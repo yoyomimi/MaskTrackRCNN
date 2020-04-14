@@ -1,0 +1,1 @@
+./tools/dist_train.sh configs/cascade_mask_rcnn_r50_fpn_1x_mots.py 2

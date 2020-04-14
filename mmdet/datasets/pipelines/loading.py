@@ -126,8 +126,8 @@ class MOTSLoadImageFromFile(object):
     def __call__(self, results):
         filename = results['img_info']['filename']
         img = mmcv.imread(filename, self.color_type)
-        frame_id = int(img.split('/')[-1][:-4]) - 1
-        video_id = int(img.split('/')[-3].split('-')[-1])
+        frame_id = results['img_info']['frame_id']
+        video_id = results['img_info']['vid']
         if self.to_float32:
             img = img.astype(np.float32)
         results['filename'] = filename
@@ -179,7 +179,7 @@ class MOTSLoadAnnotations(object):
 
     def _load_mask_ignore(self, results):
         if results['ann_info']['mask_ignore'] is None:
-            results['ann_info']['mask_ignore'] = [np.zeros((results['img'].shape[0], results['img'].shape[1]))]
+            results['mask_ignore'] = [np.zeros((results['img'].shape[0], results['img'].shape[1]))]
         else:
             results['mask_ignore'] = [maskUtils.decode(results['ann_info']['mask_ignore'])] # list length=1, [h, w]
         results['mask_fields'].append('mask_ignore')

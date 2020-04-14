@@ -7,7 +7,7 @@ from mmdet.datasets.transforms import ImageTransform
 from mmdet.core import get_classes
 
 
-def _prepare_data(img, img_transform, cfg, device):
+def _prepare_data(img, img_transform, cfg, device, is_first=False):
     ori_shape = img.shape
     img, img_shape, pad_shape, scale_factor = img_transform(
         img, scale=cfg.data.test.img_scale)
@@ -18,22 +18,26 @@ def _prepare_data(img, img_transform, cfg, device):
             img_shape=img_shape,
             pad_shape=pad_shape,
             scale_factor=scale_factor,
-            flip=False)
+            flip=False,
+            is_first=is_first
+        )
     ]
     return dict(img=[img], img_meta=[img_meta])
 
 
-def _inference_single(model, img, img_transform, cfg, device):
+def _inference_single(model, img, img_transform, cfg, device, is_first=False):
     img = mmcv.imread(img)
-    data = _prepare_data(img, img_transform, cfg, device)
+    data = _prepare_data(img, img_transform, cfg, device, is_first)
     with torch.no_grad():
         result = model(return_loss=False, rescale=True, **data)
     return result
 
 
 def _inference_generator(model, imgs, img_transform, cfg, device):
-    for img in imgs:
-        yield _inference_single(model, img, img_transform, cfg, device)
+    yield _inference_single(model, imgs[0], img_transform, cfg, device, is_first=True)
+    if len(imgs) > 1:
+        for img in imgs[1:]:
+            yield _inference_single(model, img, img_transform, cfg, device, is_first=False)
 
 
 def inference_detector(model, imgs, cfg, device='cuda:0'):
@@ -43,7 +47,7 @@ def inference_detector(model, imgs, cfg, device='cuda:0'):
     model.eval()
 
     if not isinstance(imgs, list):
-        return _inference_single(model, imgs, img_transform, cfg, device)
+        return _inference_single(model, imgs, img_transform, cfg, device, is_first=True)
     else:
         return _inference_generator(model, imgs, img_transform, cfg, device)
 

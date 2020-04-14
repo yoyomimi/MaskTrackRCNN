@@ -2,6 +2,10 @@
 
 PYTHON=${PYTHON:-"python"}
 
+
+export PATH=/usr/local/cuda/bin:$PATH && export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH && \
+export PATH=/usr/local/cuda/bin/nvcc:$PATH
+
 echo "Building roi align op..."
 cd mmdet/ops/roi_align
 if [ -d "build" ]; then

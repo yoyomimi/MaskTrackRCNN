@@ -199,15 +199,19 @@ data = dict(
     train=dict(
         type=dataset_type,
         data_root=data_root+'train/',
-        pipeline=train_pipeline),
+        pipeline=train_pipeline,
+        test_mode=False),
     val=dict(
         type=dataset_type,
         data_root=data_root+'train/',
-        pipeline=test_pipeline),
+        pipeline=test_pipeline,
+        test_mode=False),
     test=dict(
-        type=dataset_tywpe,
+        type=dataset_type,
         data_root=data_root+'train/',
-        pipeline=test_pipeline))
+        pipeline=test_pipeline,
+        test_mode=True)
+)
 # optimizer
 optimizer = dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.0001) # 0.01
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
@@ -221,7 +225,7 @@ lr_config = dict(
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
-    interval=50,
+    interval=5, #50
     hooks=[
         dict(type='TextLoggerHook'),
         # dict(type='TensorboardLoggerHook')

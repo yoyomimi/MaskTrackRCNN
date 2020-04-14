@@ -29,7 +29,7 @@ class CascadeTrackRCNN(BaseDetector, RPNTestMixin, MaskTestMixin):
                  pretrained=None):
         assert bbox_roi_extractor is not None
         assert bbox_head is not None
-        super(CascadeRCNN, self).__init__()
+        super(CascadeTrackRCNN, self).__init__()
 
         self.num_stages = num_stages
         self.backbone = builder.build_backbone(backbone)
@@ -90,7 +90,7 @@ class CascadeTrackRCNN(BaseDetector, RPNTestMixin, MaskTestMixin):
         return hasattr(self, 'rpn_head') and self.rpn_head is not None
 
     def init_weights(self, pretrained=None):
-        super(CascadeRCNN, self).init_weights(pretrained)
+        super(CascadeTrackRCNN, self).init_weights(pretrained)
         self.backbone.init_weights(pretrained=pretrained)
         if self.with_neck:
             if isinstance(self.neck, nn.Sequential):
@@ -119,7 +119,6 @@ class CascadeTrackRCNN(BaseDetector, RPNTestMixin, MaskTestMixin):
                       img,
                       img_meta,
                       gt_bboxes,
-                      gt_bboxes_ignore,
                       gt_labels,
                       ref_img, 
                       ref_bboxes,
@@ -129,7 +128,6 @@ class CascadeTrackRCNN(BaseDetector, RPNTestMixin, MaskTestMixin):
                       proposals=None):
         x = self.extract_feat(img)
         ref_x = self.extract_feat(ref_img)
-
         losses = dict()
 
         if self.with_rpn:
@@ -156,7 +154,6 @@ class CascadeTrackRCNN(BaseDetector, RPNTestMixin, MaskTestMixin):
                 assign_and_sample,
                 proposal_list,
                 gt_bboxes,
-                gt_bboxes_ignore,
                 gt_labels,
                 gt_ids,
                 cfg=rcnn_train_cfg)
@@ -167,8 +164,8 @@ class CascadeTrackRCNN(BaseDetector, RPNTestMixin, MaskTestMixin):
             track_head = self.track_head[i]
 
             rois = bbox2roi([res.bboxes for res in sampling_results])
-            bbox_feats = bbox_roi_extractor(x[:bbox_roi_extractor.num_inputs],
-                                            rois)
+            bbox_img_n = [res.bboxes.size(0) for res in sampling_results]
+            bbox_feats = bbox_roi_extractor(x[:bbox_roi_extractor.num_inputs], rois)
             ref_bbox_feats = bbox_roi_extractor(
                 ref_x[:bbox_roi_extractor.num_inputs], ref_rois)
             cls_score, bbox_pred = bbox_head(bbox_feats)
@@ -179,11 +176,9 @@ class CascadeTrackRCNN(BaseDetector, RPNTestMixin, MaskTestMixin):
             for name, value in loss_bbox.items():
                 losses['s{}.{}'.format(i, name)] = (value * lw if
                                                     'loss' in name else value)
-            
-            match_score = self.track_head(bbox_feats, ref_bbox_feats, 
+            match_score = track_head(bbox_feats, ref_bbox_feats, 
                                           bbox_img_n, ref_bbox_img_n)
-            loss_match = self.track_head.loss(match_score,
-                                              ids, id_weights)
+            loss_match = track_head.loss(match_score, ids, id_weights)
             for name, value in loss_match.items():
                 losses['s{}.{}'.format(i, name)] = (value * lw if
                                                     'loss' in name else value)

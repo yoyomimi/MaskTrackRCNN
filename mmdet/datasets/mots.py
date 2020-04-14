@@ -1,10 +1,13 @@
 import numpy as np
+import random
+import torch
 from pycocotools.coco import COCO
 import pycocotools.mask as rletools
 from torch.utils.data import Dataset
-from .pipelines import Compose
+from .pipelines import Compose, to_tensor
 from .registry import DATASETS
 import os
+from mmcv.parallel import DataContainer as DC
 
 TRAINVAL_SEQ = {'MOTS20-02': (1920,1080), 'MOTS20-05': (640,480), 'MOTS20-09': (1920,1080), 'MOTS20-11':(1920,1080)}
 # TRAINVAL_SEQ = {'MOTS20-05': (640,480)}
@@ -32,8 +35,8 @@ class MOTSDataset(Dataset):
 
         self.pipeline = Compose(pipeline)
 
-        self.img_infos = self.load_annotations(self.data_root)
-
+        self.img_infos, self.vid_infos, self.idx_vid_infos = self.load_annotations(self.data_root)
+        
         if not self.test_mode:
             self._set_group_flag()
 
@@ -76,39 +79,25 @@ class MOTSDataset(Dataset):
 
         return objects_per_frame
    
-    # TODO
-    # def sample_ref(self, idx):
-    #     # sample another frame in the same sequence as reference
-    #     vid, frame_id = idx
-    #     vid_info = self.vid_infos[vid]
-    #     sample_range = range(len(vid_info['filenames']))
-    #     valid_samples = []
-    #     for i in sample_range:
-    #       # check if the frame id is valid
-    #       ref_idx = (vid, i)
-    #       if i != frame_id and ref_idx in self.img_ids:
-    #           valid_samples.append(ref_idx)
-    #     assert len(valid_samples) > 0
-    #     return random.choice(valid_samples)
-
     def load_annotations(self, data_root):
         img_infos = []
+        vid_infos = {}
+        idx_vid_infos = []
         if not self.test_mode:
             seq_id = 0
             for seq in TRAINVAL_SEQ.keys():
-                seq_id += 1
+                seq_id += 1 # from 1
+                if seq_id not in vid_infos.keys():
+                    vid_infos[seq_id] = {}
                 object_per_frame = self.load_txt(path=os.path.join(data_root, seq, 'gt', 'gt.txt'))
                 for k,v in object_per_frame.items():
+                    frame_id = int(k) - 1
                     img_info = {
                         'filename': os.path.join(data_root, seq, 'img1', str(k).zfill(6)+'.jpg'),
                         'height': TRAINVAL_SEQ[seq][1],
                         'width': TRAINVAL_SEQ[seq][0],
-                    }
-                    # TODO
-                    ref_img_info = {
-                        'filename': os.path.join(data_root, seq, 'img1', str(ref_frame_id).zfill(6)+'.jpg'),
-                        'height': TRAINVAL_SEQ[seq][1],
-                        'width': TRAINVAL_SEQ[seq][0],
+                        'vid': seq_id,
+                        'frame_id': frame_id
                     }
                     ann_info = {
                         'bboxes': None,
@@ -116,8 +105,6 @@ class MOTSDataset(Dataset):
                         'mask_ignore': None,
                         'labels': [],
                         'ids': [],
-                        'ref_bboxes': None,
-                        'ref_masks': [] # TODO
                     }
                     for i in v:
                         if i.class_id == 10:
@@ -127,6 +114,11 @@ class MOTSDataset(Dataset):
                             ann_info['labels'].append(1)
                             ann_info['ids'].append(i.track_id + seq_id * 1000)
                     img_infos.append((img_info, ann_info))
+                    
+                    # from 0
+                    if frame_id not in vid_infos[seq_id].keys():
+                        vid_infos[seq_id][frame_id] = len(img_infos) - 1
+                    idx_vid_infos.append((seq_id, frame_id))
         else:
             for seq in TEST_SEQ.keys():
                 object_per_frame = self.load_txt(path=os.path.join(data_root, seq, 'gt', 'gt.txt'))
@@ -137,7 +129,7 @@ class MOTSDataset(Dataset):
                         'width': TRAINVAL_SEQ[seq][0],
                     }
                     img_infos.append(img_info)
-        return img_infos
+        return img_infos, vid_infos, idx_vid_infos
 
     def _set_group_flag(self):
         """Set flag according to image aspect ratio.
@@ -150,6 +142,21 @@ class MOTSDataset(Dataset):
             img_info = self.img_infos[i][0]
             if img_info['width'] / img_info['height'] > 1:
                 self.flag[i] = 1
+                
+    def sample_ref(self, idx):
+        # sample another frame in the same sequence as reference
+        vid, frame_id = self.idx_vid_infos[idx]
+        frame_num = len(self.vid_infos[vid])
+        sample_range = range(frame_num)
+        valid_samples = []
+        for i in sample_range:
+            # check if the frame id is valid
+            ref_idx = (vid, i)
+            if i != frame_id and ref_idx in self.idx_vid_infos:
+                valid_samples.append(ref_idx)
+        assert len(valid_samples) > 0
+        ref_vid, ref_frame_id = random.choice(valid_samples)
+        return self.vid_infos[ref_vid][ref_frame_id]
 
     def _rand_another(self, idx):
         pool = np.where(self.flag == self.flag[idx])[0]
@@ -159,16 +166,22 @@ class MOTSDataset(Dataset):
         if self.test_mode:
             return self.prepare_test_img(idx)
         while True:
-            data = self.prepare_train_img(idx)
-            if data is None:
+            data, ref_data = self.prepare_train_img(idx)
+            if (data is None) or (ref_data is None):
                 idx = self._rand_another(idx)
                 continue
-            # print(data['img'].data.shape)
-            # print(data['gt_masks'].data.shape)
-            # print(data['gt_bboxes'].data.shape)
-            # print(data['gt_ids'].data.shape)
-            # print(data['gt_labels'].data.shape)
-            # print(data['mask_ignore'].data.shape)
+            data['ref_img'] = ref_data['img']
+            data['ref_bboxes'] = ref_data['gt_bboxes']
+            ref_ids = np.array(ref_data['gt_ids'])
+            ids = data['gt_ids']
+            for i in range(len(ids)):
+                ref_id_index = np.where(ref_ids == ids[i])[0]
+                if len(ref_id_index) == 0:
+                    ids[i] = 0
+                else:
+                    ids[i] = ref_id_index[0] + 1
+            data['gt_ids'] = DC(to_tensor(ids))
+            
             return data
 
     def pre_pipeline(self, results):
@@ -178,10 +191,14 @@ class MOTSDataset(Dataset):
         return results
 
     def prepare_train_img(self, idx):
+        ref_idx = self.sample_ref(idx)
         img_info, ann_info = self.img_infos[idx]
+        ref_img_info, ref_ann_info = self.img_infos[ref_idx]
         results = dict(img_info=img_info, ann_info=ann_info)
+        ref_results = dict(img_info=ref_img_info, ann_info=ref_ann_info)
         results = self.pre_pipeline(results)
-        return self.pipeline(results)
+        ref_results = self.pre_pipeline(ref_results)
+        return self.pipeline(results), self.pipeline(ref_results)
 
     def prepare_test_img(self, idx):
         img_info = self.img_infos[idx]

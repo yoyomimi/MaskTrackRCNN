@@ -6,7 +6,7 @@ from mmcv.runner import load_checkpoint, parallel_test, obj_from_dict
 from mmcv.parallel import scatter, collate, MMDataParallel
 
 from mmdet import datasets
-from mmdet.core import results2json_videoseg, ytvos_eval
+from mmdet.core import results2json_videoseg
 from mmdet.datasets import build_dataloader
 from mmdet.models import build_detector, detectors
 
@@ -112,7 +112,7 @@ def main():
             if not isinstance(outputs[0], dict):
                 result_file = args.out + '.json'
                 results2json_videoseg(dataset, outputs, result_file)
-                ytvos_eval(result_file, eval_types, dataset.ytvos)
+                # ytvos_eval(result_file, eval_types, dataset.ytvos)
             else:
                 NotImplemented
 

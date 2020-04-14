@@ -6,6 +6,8 @@
 # Modified by Kai Chen
 # ----------------------------------------------------------
 
+# cython: language_level=3, boundscheck=False
+
 import numpy as np
 cimport numpy as np
 
@@ -17,7 +19,7 @@ cdef inline np.float32_t min(np.float32_t a, np.float32_t b):
     return a if a <= b else b
 
 
-def cpu_soft_nms(
+def soft_nms_cpu(
     np.ndarray[float, ndim=2] boxes_in,
     float iou_thr,
     unsigned int method=1,
@@ -25,7 +27,7 @@ def cpu_soft_nms(
     float min_score=0.001,
 ):
     boxes = boxes_in.copy()
-    cdef unsigned int N = boxes.shape[0]
+    cdef int N = boxes.shape[0]
     cdef float iw, ih, box_area
     cdef float ua
     cdef int pos = 0
